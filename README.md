@@ -32,17 +32,6 @@ goit-argo
 └── README.md
 ```
 
-## Why The Files Are Here
-
-Terraform configures Argo CD to watch this repository in two ways:
-
-- `namespaces-appset` scans `namespaces/*` with recursion enabled.
-- `root-application-appset` scans path `"."` for root-level manifests.
-
-That means the namespace YAML files belong under `namespaces/*`, while the
-Argo CD `Application` objects for MLflow, MinIO, PostgreSQL, and PushGateway
-should live at the repository root.
-
 ## Applications
 
 ### MLflow
