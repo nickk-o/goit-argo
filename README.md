@@ -1,178 +1,154 @@
 # goit-argo
 
-GitOps repository for Argo CD manifests. This repository is separate from the
-Terraform infrastructure repository and is used as the Git source that Argo CD
-watches on the `main` branch.
+GitOps repository for Argo CD manifests. This repository is the Git source
+that the Terraform-installed Argo CD instance watches on the `main` branch.
 
 ## Repositories
 
 This solution uses two repositories:
 
-- Infrastructure repository: `https://github.com/nickk-o/MLOps/tree/lesson-7`
-- GitOps repository: `https://github.com/nickk-o/goit-argo.git`
+- Infrastructure repository: `terraform`
+- GitOps repository: `goit-argo`
 
-The infrastructure repository installs Argo CD with Terraform. This repository
-contains the Kubernetes and Argo CD manifests that Argo CD synchronizes from
-GitHub.
+The infrastructure repository installs Argo CD and configures its
+`ApplicationSet` objects. This repository contains the namespace manifests and
+root-level Argo CD `Application` manifests that Argo CD synchronizes.
 
 ## Project Structure
 
 ```text
 goit-argo
 ├── application.yaml
+├── minio.yaml
+├── postgres.yaml
+├── pushgateway.yaml
 ├── namespaces
 │   ├── application
-│   │   ├── nginx.yaml
 │   │   └── ns.yaml
-│   └── infra-tools
+│   ├── infra-tools
+│   │   └── ns.yaml
+│   └── monitoring
 │       └── ns.yaml
 └── README.md
 ```
 
-## Purpose Of The Files
+## Why The Files Are Here
 
-`application.yaml` defines the Argo CD `Application` resource for the test
-application. In this project it deploys MLflow from a Helm chart with
-automated sync, pruning, self-heal, and automatic namespace creation.
+Terraform configures Argo CD to watch this repository in two ways:
 
-`namespaces/application/ns.yaml` declares the target namespace for application
-workloads.
+- `namespaces-appset` scans `namespaces/*` with recursion enabled.
+- `root-application-appset` scans path `"."` for root-level manifests.
 
-`namespaces/infra-tools/ns.yaml` declares the namespace used by Argo CD system
-components.
+That means the namespace YAML files belong under `namespaces/*`, while the
+Argo CD `Application` objects for MLflow, MinIO, PostgreSQL, and PushGateway
+should live at the repository root.
 
-`namespaces/application/nginx.yaml` contains a simple nginx example manifest.
+## Applications
 
-## Deployment Model
+### MLflow
 
-Argo CD is installed from the Terraform repository as a `helm_release` in the
-`infra-tools` namespace.
+[application.yaml](application.yaml)
+deploys the MLflow Tracking Server:
 
-Terraform also configures Argo CD to watch this GitHub repository on the
-`main` branch through ApplicationSets. After changes are committed and pushed,
-Argo CD detects the new revision and synchronizes the cluster state
-automatically.
+- chart: `mlflow`
+- repository: `https://community-charts.github.io/helm-charts`
+- namespace: `application`
+- service: `ClusterIP`
+- port: `5000`
+- backend store: external PostgreSQL
+- artifact store: MinIO bucket `mlflow-artifacts`
 
-The repository URL configured in Terraform:
+### MinIO
 
-```hcl
-app_repo_url    = "https://github.com/nickk-o/goit-argo.git"
-app_repo_branch = "main"
-```
+[minio.yaml](minio.yaml)
+deploys MinIO in `application` with:
 
-## Test Application
+- bucket: `mlflow-artifacts`
+- service type: `ClusterIP`
 
-The deployed test application is MLflow. The Argo CD `Application` in
-`application.yaml` uses:
+### PostgreSQL
 
-- `repoURL: https://community-charts.github.io/helm-charts`
-- `chart: mlflow`
-- `targetRevision: 1.8.1`
-- inline Helm values in `spec.source.helm.values`
+[postgres.yaml](postgres.yaml)
+deploys PostgreSQL in `application` with:
 
-The manifest also enables:
+- database: `mlflow`
+- username: `mlflow`
+- service type: `ClusterIP`
 
-- automated sync
-- `prune: true`
-- `selfHeal: true`
-- `CreateNamespace=true`
+### PushGateway
 
-## How To Apply The Solution
+[pushgateway.yaml](pushgateway.yaml)
+deploys Prometheus PushGateway in `monitoring` with:
 
-### 1. Push GitOps manifests
+- service type: `ClusterIP`
+- port: `9091`
+- in-cluster address:
+  `http://pushgateway.monitoring.svc.cluster.local:9091`
 
-Run in this repository:
+## Namespaces
+
+- [namespaces/application/ns.yaml](namespaces/application/ns.yaml)
+  declares the `application` namespace.
+- [namespaces/infra-tools/ns.yaml](namespaces/infra-tools/ns.yaml)
+  declares the `infra-tools` namespace.
+- [namespaces/monitoring/ns.yaml](namespaces/monitoring/ns.yaml)
+  declares the `monitoring` namespace.
+
+## Apply Flow
+
+1. Commit and push changes from this repository:
 
 ```bash
 git add -A
-git commit -m "Add GitOps manifests"
+git commit -m "Prepare MLflow GitOps applications"
 git push origin main
 ```
 
-### 2. Deploy Argo CD from Terraform
-
-Run in the infrastructure repository:
+2. Ensure Argo CD exists from the infrastructure repository:
 
 ```bash
-cd ~/terraform/argocd
 terraform init -reconfigure
 terraform plan
 terraform apply
 ```
 
+After the push, Argo CD should detect the new revision and sync automatically.
+
+This is the GitHub repository Argo CD watches:
+
+- `https://github.com/nickk-o/goit-argo.git`
+
 ## Verification
-
-Verify that Argo CD is running:
-
-```bash
-kubectl get pods -n infra-tools
-```
-
-Expected result: several pods with the `argocd-` prefix.
-
-Verify that Argo CD created and synchronized the Application resources:
 
 ```bash
 kubectl get applications -n infra-tools
-```
-
-Verify that the target workload was deployed:
-
-```bash
 kubectl get pods -n application
 kubectl get svc -n application
+kubectl get pods -n monitoring
+kubectl get svc -n monitoring
 ```
 
-## Access To Argo CD UI
+Expected services:
 
-Get the initial admin password:
+- `mlflow`
+- `minio`
+- `mlflow-postgres-postgresql`
+- `pushgateway`
+
+## Port-Forward
+
+### MLflow
 
 ```bash
-kubectl -n infra-tools get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d && echo
+kubectl port-forward svc/mlflow -n application 5000:5000
 ```
 
-Start port forwarding:
+Open `http://localhost:5000`.
+
+### PushGateway
 
 ```bash
-kubectl port-forward svc/argocd-server -n infra-tools 8080:80
+kubectl port-forward svc/pushgateway -n monitoring 9091:9091
 ```
 
-Open:
-
-```text
-http://localhost:8080
-```
-
-## Access To MLflow
-
-Start port forwarding:
-
-```bash
-kubectl port-forward svc/mlflow -n application 8081:80
-```
-
-Open:
-
-```text
-http://localhost:8081
-```
-
-## Result
-
-The solution provides:
-
-- Argo CD deployed through Terraform in the `infra-tools` namespace
-- a separate public GitOps repository with namespace and application manifests
-- an Argo CD `Application` stored in Git and synchronized from GitHub
-- automatic reconciliation of the MLflow Helm deployment into the
-  `application` namespace
-
-## Acceptance Criteria
-
-- Argo CD is deployed by Terraform as a `helm_release`
-- `argocd-values.yaml` contains service, RBAC, extra arguments, and timeout
-  settings
-- `application.yaml` describes a Helm deployment with chart source and values
-- Argo CD synchronizes the application automatically from GitHub
-- the `application` namespace contains the deployed workload after sync
-- access is available through `kubectl port-forward`
+Open `http://localhost:9091`.
