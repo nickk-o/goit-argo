@@ -20,7 +20,9 @@ spec:
       releaseName: minio
       valuesObject:
         image:
-          tag: "2025.7.23-debian-12-r3"
+          registry: docker.io
+          repository: bitnamilegacy/minio
+          tag: "2024.3.5-debian-12-r0"
         auth:
           rootUser: minio
           rootPassword: minio123

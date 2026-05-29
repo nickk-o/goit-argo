@@ -20,7 +20,9 @@ spec:
       releaseName: mlflow-postgres
       valuesObject:
         image:
-          tag: "16.3.0-debian-12-r4"
+          registry: docker.io
+          repository: bitnamilegacy/postgresql
+          tag: "15.3.0-debian-11-r7"
         auth:
           username: mlflow
           password: mlflowpass
