@@ -21,6 +21,7 @@ goit-argo
 ├── application.yaml
 ├── minio.yaml
 ├── postgres.yaml
+├── prometheus-operator.yaml
 ├── pushgateway.yaml
 ├── namespaces
 │   ├── application
@@ -74,6 +75,22 @@ deploys Prometheus PushGateway in `monitoring` with:
 - in-cluster address:
   `http://pushgateway.monitoring.svc.cluster.local:9091`
 
+### Prometheus Operator
+
+[prometheus-operator.yaml](prometheus-operator.yaml)
+deploys the monitoring stack in `monitoring` with:
+
+- chart: `kube-prometheus-stack`
+- Prometheus enabled
+- Grafana enabled
+- `ServiceMonitor` CRDs installed by the operator
+- Grafana password: `prom-operator`
+- Prometheus retention: `2d`
+
+This application is required for the task because PushGateway is configured
+with `serviceMonitor.enabled: true`, and Grafana Explore depends on the
+Prometheus stack being present.
+
 ## Namespaces
 
 - [namespaces/application/ns.yaml](namespaces/application/ns.yaml)
@@ -122,6 +139,8 @@ Expected services:
 - `mlflow`
 - `minio`
 - `mlflow-postgres-postgresql`
+- `monitoring-grafana`
+- `monitoring-kube-prometheus-prometheus`
 - `pushgateway`
 
 ## Port-Forward
@@ -141,3 +160,25 @@ kubectl port-forward svc/pushgateway -n monitoring 9091:9091
 ```
 
 Open `http://localhost:9091`.
+
+### Grafana
+
+```bash
+kubectl port-forward svc/monitoring-grafana -n monitoring 3000:80
+```
+
+Open `http://localhost:3000`.
+
+Get the admin password:
+
+```bash
+kubectl get secret monitoring-grafana -n monitoring -o jsonpath="{.data.admin-password}" | base64 -d
+```
+
+### Prometheus
+
+```bash
+kubectl port-forward svc/monitoring-kube-prometheus-prometheus -n monitoring 9090:9090
+```
+
+Open `http://localhost:9090`.
