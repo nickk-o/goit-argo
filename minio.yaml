@@ -15,10 +15,12 @@ spec:
   source:
     repoURL: https://charts.bitnami.com/bitnami
     chart: minio
-    targetRevision: 17.0.21
+    targetRevision: 13.7.2
     helm:
       releaseName: minio
       valuesObject:
+        image:
+          tag: "2025.7.23-debian-12-r3"
         auth:
           rootUser: minio
           rootPassword: minio123

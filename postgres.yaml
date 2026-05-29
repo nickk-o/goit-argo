@@ -15,10 +15,12 @@ spec:
   source:
     repoURL: https://charts.bitnami.com/bitnami
     chart: postgresql
-    targetRevision: 18.6.7
+    targetRevision: 12.5.6
     helm:
       releaseName: mlflow-postgres
       valuesObject:
+        image:
+          tag: "16.3.0-debian-12-r4"
         auth:
           username: mlflow
           password: mlflowpass
