@@ -14,7 +14,7 @@ spec:
   project: default
   source:
     repoURL: https://gitlab.com/nick-ops/MLOps.git
-    targetRevision: main
+    targetRevision: final-project
     path: final-ml-service/helm
     helm:
       releaseName: final-ml-service
@@ -22,7 +22,7 @@ spec:
         env:
           retrainWebhookUrl: ""
           gitlabTriggerUrl: "https://gitlab.com/api/v4/projects/83068665/trigger/pipeline"
-          gitlabTriggerRef: "main"
+          gitlabTriggerRef: "final-project"
         secret:
           create: false
           name: "final-ml-service-secret"
