@@ -23,9 +23,7 @@ spec:
         singleBinary:
           replicas: 1
           persistence:
-            enabled: true
-            storageClass: gp2
-            size: 10Gi
+            enabled: false
         loki:
           auth_enabled: false
           commonConfig:
