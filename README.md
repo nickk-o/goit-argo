@@ -115,13 +115,13 @@ deploys Promtail in `monitoring` with:
 deploys the final FastAPI inference service from the infrastructure repository:
 
 - source repository: `https://gitlab.com/nick-ops/MLOps.git`
+- target revision: currently `final-project`
 - chart path: `final-ml-service/helm`
 - namespace: `application`
 - automated sync and self-heal enabled
 
-This application is required for the task because PushGateway is configured
-with `serviceMonitor.enabled: true`, and Grafana Explore depends on the
-Prometheus stack being present.
+The service exposes Prometheus metrics through a `ServiceMonitor` and ships
+stdout logs through Promtail to Loki.
 
 ## Namespaces
 
@@ -151,6 +151,9 @@ terraform apply
 ```
 
 After the push, Argo CD should detect the new revision and sync automatically.
+If you later merge the GitLab work branch into `main`, update
+`final-ml-service.yaml` so `targetRevision` and `gitlabTriggerRef` match the
+final delivery branch.
 
 This is the GitHub repository Argo CD watches:
 
@@ -168,6 +171,9 @@ kubectl get svc -n monitoring
 
 Expected services:
 
+- `final-ml-service`
+- `loki`
+- `loki-gateway`
 - `mlflow`
 - `minio`
 - `mlflow-postgres-postgresql`
