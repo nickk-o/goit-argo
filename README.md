@@ -19,9 +19,12 @@ root-level Argo CD `Application` manifests that Argo CD synchronizes.
 ```text
 goit-argo
 ├── application.yaml
+├── final-ml-service.yaml
+├── loki.yaml
 ├── minio.yaml
 ├── postgres.yaml
 ├── prometheus-operator.yaml
+├── promtail.yaml
 ├── pushgateway.yaml
 ├── namespaces
 │   ├── application
@@ -86,6 +89,35 @@ deploys the monitoring stack in `monitoring` with:
 - `ServiceMonitor` CRDs installed by the operator
 - Grafana password: `prom-operator`
 - Prometheus retention: `2d`
+- Grafana dashboard sidecar enabled across all namespaces
+
+### Loki
+
+[loki.yaml](loki.yaml)
+deploys Loki in `monitoring` with:
+
+- single-binary mode
+- in-cluster gateway endpoint for Promtail
+- no auth for in-cluster log shipping
+
+### Promtail
+
+[promtail.yaml](promtail.yaml)
+deploys Promtail in `monitoring` with:
+
+- log shipping to Loki
+- pod discovery in the `application` namespace
+- scrape rules narrowed to `final-ml-service`
+
+### Final ML Service
+
+[final-ml-service.yaml](final-ml-service.yaml)
+deploys the final FastAPI inference service from the infrastructure repository:
+
+- source repository: `https://gitlab.com/nick-ops/MLOps.git`
+- chart path: `final-ml-service/helm`
+- namespace: `application`
+- automated sync and self-heal enabled
 
 This application is required for the task because PushGateway is configured
 with `serviceMonitor.enabled: true`, and Grafana Explore depends on the
